@@ -1,4 +1,4 @@
-const stars = 400
+const stars = 200
 
 for (let i =0; i < stars; i++) {
     let star = document.createElement("div")

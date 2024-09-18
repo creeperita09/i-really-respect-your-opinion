@@ -1,0 +1,65 @@
+name: Sync, Minify and Push to Minified Branch
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-minify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install pnpm globally
+      run: npm install -g pnpm
+
+    - name: Cache pnpm store
+      uses: actions/cache@v3
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Fetch all branches
+      run: git fetch --all
+
+    - name: Create or checkout the minified branch
+      run: |
+        git checkout -B minified origin/main
+
+    - name: Minify HTML
+      run: pnpm run minify:html &
+
+    - name: Minify CSS
+      run: pnpm run minify:css &
+
+    - name: Minify JS
+      run: pnpm run minify:js &
+
+    - name: Minify JSON
+      run: pnpm run minify:json &
+
+    - name: Wait for all minification tasks to finish
+      run: wait
+
+    - name: Commit and Push Minified Files to Minified Branch
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add -u
+        git commit -m "Minified HTML, CSS, JS, and JSON"
+        git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" minified
